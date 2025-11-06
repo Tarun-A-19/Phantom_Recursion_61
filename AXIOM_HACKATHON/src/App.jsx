@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
+import DoctorDashboard from './components/DoctorDashboard';
 import PrescriptionPage from './components/PrescriptionPage';
 import SymptomCheckerPage from './components/SymptomCheckerPage';
 import DoctorConsultPage from './components/DoctorConsultPage';
@@ -40,8 +41,16 @@ function App() {
   useEffect(() => {
     const storedUser = sessionStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
       setIsAuthenticated(true);
+      
+      // Only request location for patients
+      if (!userData.isDoctor) {
+        setLocationLoading(true);
+      } else {
+        setLocationLoading(false);
+      }
     } else {
       setLocationLoading(false);
     }
@@ -51,7 +60,13 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData);
     setIsAuthenticated(true);
-    setLocationLoading(true);
+    
+    // Only request location for patients
+    if (!userData.isDoctor) {
+      setLocationLoading(true);
+    } else {
+      setLocationLoading(false);
+    }
   };
   
   // Handle logout
@@ -98,7 +113,7 @@ function App() {
   };
   
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || user?.isDoctor) return;
     
     const requestLocation = async () => {
       setLocationLoading(true);
@@ -122,7 +137,7 @@ function App() {
     };
     
     requestLocation();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
   
   useEffect(() => {
     const handleScroll = () => {
@@ -176,7 +191,13 @@ function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
   
-  // Show loading screen while getting location
+  // ===== DOCTOR DASHBOARD =====
+  if (user?.isDoctor) {
+    return <DoctorDashboard user={user} onLogout={handleLogout} />;
+  }
+  
+  // ===== PATIENT DASHBOARD =====
+  // Show loading screen while getting location (for patients only)
   if (locationLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50">
