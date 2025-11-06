@@ -2,9 +2,48 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💊</text></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>axiom-hackathon</title>
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Medical Theme Config -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#06b6d4', // Medical cyan
+              secondary: '#0891b2',
+              accent: '#10b981', // Healthy green
+              danger: '#ef4444',
+              warning: '#f59e0b',
+              'med-blue': '#3b82f6',
+              'med-green': '#22c55e',
+              'med-purple': '#8b5cf6',
+            },
+            fontFamily: {
+              'medical': ['Inter', 'system-ui', 'sans-serif'],
+            },
+            boxShadow: {
+              'medical': '0 4px 20px rgba(6, 182, 212, 0.15)',
+              'card': '0 2px 15px rgba(0, 0, 0, 0.08)',
+            }
+          }
+        }
+      }
+    </script>
+    
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <title>MediLocate - Smart Medicine Locator</title>
   </head>
   <body>
     <div id="root"></div>

@@ -1,0 +1,651 @@
+import { useState, useEffect, useRef } from 'react';
+import SearchBar from './components/searchbar';
+import OCRUpload from './components/ocrupload';
+import ResultsList from './components/ResultsList';
+import Map from './components/Map';
+import PriceChart from './components/PriceChart';
+import SubstituteModal from './components/SubstituteModal';
+import { demoPharmacies, medicineSubstitutes } from './data/demodata';
+import { searchPharmacies } from './utils/calculations';
+import { getUserLocation } from './utils/api';
+import { MapPin, Activity, Shield, Sparkles, TrendingUp, PillBottle, Heart, Moon, Sun, Menu, X, ArrowUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
+
+function App() {
+  const [results, setResults] = useState([]);
+  const [userLocation, setUserLocation] = useState(null);
+  const [currentMedicine, setCurrentMedicine] = useState('');
+  const [showSubstitutes, setShowSubstitutes] = useState(false);
+  const [selectedMedicine, setSelectedMedicine] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchSectionRef = useRef(null);
+  const { ref: heroRef, inView: heroInView } = useInView({
+    threshold: 0.1,
+    triggerOnce: false
+  });
+  
+  // Get user location on mount
+  useEffect(() => {
+    getUserLocation()
+      .then(location => {
+        setUserLocation(location);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Location error:', err);
+        setUserLocation({ lat: 28.6139, lng: 77.2090 });
+        setLoading(false);
+      });
+    
+    // Check for dark mode preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setDarkMode(true);
+    }
+  }, []);
+
+  // Toggle dark mode
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+  
+  // Handle scroll for navbar
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+  
+  const handleSearch = (medicine) => {
+    if (!userLocation) {
+      alert('Getting your location...');
+      return;
+    }
+    
+    setCurrentMedicine(medicine);
+    const searchResults = searchPharmacies(
+      demoPharmacies,
+      medicine,
+      userLocation.lat,
+      userLocation.lng
+    );
+    
+    setResults(searchResults);
+    
+    // Smooth scroll to results
+    setTimeout(() => {
+      document.getElementById('results-section')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+  
+  const handleViewSubstitutes = (medicine) => {
+    setSelectedMedicine(medicine);
+    setShowSubstitutes(true);
+  };
+  
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.3
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: 'spring',
+        stiffness: 100,
+        damping: 20
+      }
+    }
+  };
+
+  return (
+    <div className={`min-h-screen font-['Inter',sans-serif] transition-colors duration-300 ${
+      darkMode 
+        ? 'dark bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-100' 
+        : 'bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 text-gray-900'
+    }`}>
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 lg:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              className="absolute top-0 right-0 w-3/4 h-full bg-white dark:bg-gray-800 shadow-2xl p-6"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">Menu</h2>
+                <button 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <nav className="space-y-4">
+                <a href="#about" className="block py-2 text-lg font-medium hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">About</a>
+                <a href="#services" className="block py-2 text-lg font-medium hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">Services</a>
+                <a href="#contact" className="block py-2 text-lg font-medium hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">Contact</a>
+                <button 
+                  onClick={() => {
+                    setDarkMode(!darkMode);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 py-2 text-lg font-medium hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors"
+                >
+                  {darkMode ? 'Light Mode' : 'Dark Mode'}
+                  {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                </button>
+              </nav>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main content */}
+      <div className="relative z-10">
+        {/* Navbar */}
+        <motion.nav 
+          initial={{ y: -100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+          className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+            heroInView 
+              ? 'bg-transparent shadow-none' 
+              : 'bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-sm'
+          }`}
+        >
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <motion.div 
+                  whileHover={{ rotate: 15, scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2.5 rounded-xl cursor-pointer"
+                >
+                  <PillBottle size={28} className="text-white" />
+                </motion.div>
+                <div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">
+                    MediLocate
+                  </h1>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Smart Pharmacy Finder</p>
+                </div>
+              </div>
+              
+              {/* Desktop Navigation */}
+              <div className="hidden lg:flex items-center gap-6">
+                <motion.a 
+                  href="#about" 
+                  whileHover={{ y: -2, color: '#0891b2' }}
+                  className="text-gray-700 dark:text-gray-300 transition-colors font-medium"
+                >
+                  About
+                </motion.a>
+                <motion.a 
+                  href="#services" 
+                  whileHover={{ y: -2, color: '#0891b2' }}
+                  className="text-gray-700 dark:text-gray-300 transition-colors font-medium"
+                >
+                  Services
+                </motion.a>
+                <motion.a 
+                  href="#contact" 
+                  whileHover={{ y: -2, color: '#0891b2' }}
+                  className="text-gray-700 dark:text-gray-300 transition-colors font-medium"
+                >
+                  Contact
+                </motion.a>
+                <motion.button 
+                  whileHover={{ scale: 1.05, boxShadow: '0 10px 25px -5px rgba(14, 165, 233, 0.4)' }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-2.5 rounded-full font-semibold transition-all flex items-center gap-2"
+                >
+                  <span>Get Started</span>
+                  <motion.span
+                    animate={{ x: [0, 4, 0] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                  >
+                    →
+                  </motion.span>
+                </motion.button>
+                
+                <button 
+                  onClick={() => setDarkMode(!darkMode)}
+                  className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                >
+                  {darkMode ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-gray-700" />}
+                </button>
+              </div>
+              
+              {/* Mobile Menu Button */}
+              <div className="lg:hidden flex items-center gap-4">
+                <button 
+                  onClick={() => setDarkMode(!darkMode)}
+                  className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                >
+                  {darkMode ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-gray-700" />}
+                </button>
+                <button 
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  aria-label="Open menu"
+                >
+                  <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </motion.nav>
+
+        {/* Hero Section */}
+        <section 
+          ref={heroRef}
+          className="pt-32 pb-20 px-4 relative overflow-hidden"
+        >
+          {/* Animated Background Elements */}
+          <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+            <div className="absolute top-20 left-10 w-64 h-64 bg-cyan-500 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          </div>
+          
+          <div className="container mx-auto text-center relative z-10">
+            <div className="inline-flex items-center gap-2 bg-cyan-100 text-cyan-700 px-4 py-2 rounded-full mb-6 animate-bounce">
+              <Sparkles size={16} />
+              <span className="text-sm font-semibold">AI-Powered Medicine Search</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+              <span className="bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Find Medicines
+              </span>
+              <br />
+              <span className="text-gray-800 dark:text-white">At Best Prices, Instantly</span>
+            </h1>
+            
+            <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
+              Discover nearby pharmacies with real-time availability, compare prices, 
+              and get AI-powered recommendations for the best deals.
+            </p>
+            
+            <div className="flex flex-wrap gap-4 justify-center">
+              <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-full shadow-md">
+                <Shield size={18} className="text-green-600" />
+                <span className="text-sm font-medium">100% Verified</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-full shadow-md">
+                <TrendingUp size={18} className="text-blue-600" />
+                <span className="text-sm font-medium">Best Prices</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-full shadow-md">
+                <Heart size={18} className="text-red-500" />
+                <span className="text-sm font-medium">Trusted by 10K+</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Main Content */}
+        <motion.div 
+          initial="hidden"
+          animate="visible"
+          variants={containerVariants}
+          className="container mx-auto px-4 pb-20"
+        >
+          {/* Location Card */}
+          <AnimatePresence>
+            {userLocation && (
+              <motion.div 
+                variants={itemVariants}
+                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-4 mb-8 shadow-lg border border-cyan-100 dark:border-cyan-900/50"
+              >
+                <div className="flex items-center gap-3">
+                  <motion.div 
+                    className="bg-gradient-to-br from-cyan-500 to-blue-600 p-3 rounded-xl cursor-pointer"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <MapPin size={20} className="text-white" />
+                  </motion.div>
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 font-medium">Searching Near</p>
+                    <p className="text-sm font-bold text-gray-800 dark:text-white">
+                      {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                    </p>
+                  </div>
+                  <span className="flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1.5 rounded-full font-semibold">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    Active
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
+          <motion.div 
+            variants={containerVariants}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+          >
+            {/* Left Column - Search & Results */}
+            <motion.div 
+              variants={itemVariants}
+              className="space-y-6"
+              ref={searchSectionRef}
+            >
+              {/* Search Card */}
+              <motion.div 
+                className={`bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-6 shadow-lg border ${
+                  searchFocused 
+                    ? 'border-cyan-400 dark:border-cyan-600' 
+                    : 'border-cyan-100 dark:border-gray-700'
+                } transition-all duration-300`}
+                whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(14, 165, 233, 0.2)' }}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+              >
+                <motion.div 
+                  className="flex items-center gap-2 mb-4"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <motion.span 
+                    className="w-1 h-8 bg-gradient-to-b from-cyan-500 to-blue-600 rounded-full"
+                    animate={searchFocused ? { height: 40 } : { height: 32 }}
+                    transition={{ type: 'spring', damping: 15 }}
+                  />
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-white">Search Medicine</h2>
+                </motion.div>
+                <SearchBar onSearch={handleSearch} darkMode={darkMode} />
+              </motion.div>
+              
+              {/* OCR Upload Card */}
+              <motion.div 
+                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-purple-100 dark:border-purple-900/50 hover:shadow-xl transition-all duration-300"
+                whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(168, 85, 247, 0.2)' }}
+              >
+                <motion.div 
+                  className="flex items-center gap-2 mb-4"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <motion.span 
+                    className="w-1 h-8 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full"
+                    animate={{ height: 40 }}
+                    transition={{ type: 'spring', damping: 15 }}
+                  />
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-white">Or Upload Prescription</h2>
+                </motion.div>
+                <OCRUpload onUpload={handleSearch} darkMode={darkMode} />
+              </motion.div>
+
+              {/* Results Section */}
+              <div id="results-section" className="pt-8">
+                <AnimatePresence mode="wait">
+                  {results.length > 0 ? (
+                    <>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="mb-8"
+                      >
+                        <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-2">
+                          <span className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-2 rounded-lg">
+                            <Activity size={20} />
+                          </span>
+                          Search Results
+                        </h3>
+                        <ResultsList 
+                          results={results} 
+                          onViewSubstitutes={handleViewSubstitutes}
+                          darkMode={darkMode}
+                        />
+                      </motion.div>
+                    </>
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-center py-12"
+                    >
+                      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-8 border border-gray-200 dark:border-gray-700">
+                        <div className="w-16 h-16 bg-cyan-100 dark:bg-cyan-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Activity size={28} className="text-cyan-600 dark:text-cyan-400" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Search for Medicines</h3>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-md mx-auto">
+                          Enter the name of the medicine you're looking for or upload a prescription to find nearby pharmacies.
+                        </p>
+                        <div className="flex flex-wrap gap-3 justify-center">
+                          <motion.button
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-2.5 rounded-full font-medium flex items-center gap-2"
+                            onClick={() => {
+                              const searchInput = document.querySelector('input[type="text"]');
+                              if (searchInput) searchInput.focus();
+                            }}
+                          >
+                            <span>Search Now</span>
+                            <ArrowUpRight size={18} />
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 px-6 py-2.5 rounded-full font-medium flex items-center gap-2"
+                          >
+                            <span>How It Works</span>
+                            <Info size={18} />
+                          </motion.button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+            
+            {/* Right Column - Map */}
+            <motion.div 
+              variants={itemVariants}
+              className="lg:sticky lg:top-24 h-fit space-y-6"
+            >
+              <motion.div 
+                className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-green-100 dark:border-green-900/50"
+                whileHover={{ 
+                  y: -5, 
+                  boxShadow: '0 10px 25px -5px rgba(34, 197, 94, 0.2)'
+                }}
+              >
+                <motion.div 
+                  className="flex items-center gap-2 mb-4"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
+                  <motion.span 
+                    className="w-1 h-8 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full"
+                    animate={{ height: 40 }}
+                    transition={{ type: 'spring', damping: 15 }}
+                  />
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-white">Nearby Pharmacies</h2>
+                </motion.div>
+                <div className="h-96 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <Map 
+                    pharmacies={results} 
+                    userLocation={userLocation} 
+                    darkMode={darkMode} 
+                  />
+                </div>
+              </motion.div>
+
+              <AnimatePresence>
+                {results.length > 0 && (
+                  <motion.div 
+                    className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl p-6 shadow-lg border border-green-200 dark:border-emerald-900/30"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    transition={{ delay: 0.6 }}
+                  >
+                    <motion.h3 
+                      className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800 dark:text-white"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.8 }}
+                    >
+                      <motion.span
+                        className="inline-block p-1.5 bg-green-100 dark:bg-green-900/50 rounded-lg text-green-600 dark:text-green-400"
+                        animate={{ 
+                          rotate: [0, 10, -10, 0],
+                          scale: [1, 1.1, 1]
+                        }}
+                        transition={{ 
+                          duration: 2, 
+                          repeat: Infinity, 
+                          repeatType: 'reverse' 
+                        }}
+                      >
+                        <Activity size={20} />
+                      </motion.span>
+                      <span>Search Summary</span>
+                    </motion.h3>
+                    <motion.div 
+                      className="space-y-3"
+                      initial="hidden"
+                      animate="visible"
+                      variants={{
+                        hidden: { opacity: 0 },
+                        visible: {
+                          opacity: 1,
+                          transition: {
+                            staggerChildren: 0.1
+                          }
+                        }
+                      }}
+                    >
+                      <motion.p 
+                        className="text-sm text-gray-700 dark:text-gray-300"
+                        variants={itemVariants}
+                      >
+                        Found <motion.span 
+                          className="font-bold text-cyan-600 dark:text-cyan-400 text-lg inline-block"
+                          animate={{ scale: [1, 1.2, 1] }}
+                          transition={{ duration: 0.5 }}
+                        >
+                          {results.length}
+                        </motion.span> pharmacies with
+                      </motion.p>
+                      
+                      <motion.div 
+                        className="bg-white dark:bg-gray-700/50 px-4 py-3 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600/50"
+                        variants={itemVariants}
+                        whileHover={{ x: 5 }}
+                      >
+                        <p className="font-bold text-gray-800 dark:text-white">{currentMedicine}</p>
+                      </motion.div>
+                      
+                      <motion.div 
+                        className="pt-3 border-t border-green-200 dark:border-green-800/50"
+                        variants={itemVariants}
+                      >
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
+                          <span className="text-yellow-500">🏆</span> Top Recommended:
+                        </p>
+                        <p className="text-sm font-bold text-green-600 dark:text-green-400">
+                          {results[0]?.name}
+                        </p>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2 overflow-hidden">
+                          <motion.div 
+                            className="bg-gradient-to-r from-green-400 to-emerald-500 h-full rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${results[0]?.score}%` }}
+                            transition={{ duration: 1, ease: 'easeOut' }}
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          AI Match: {results[0]?.score.toFixed(1)}/100
+                        </p>
+                      </motion.div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </motion.div>
+        </motion.div>
+
+        {/* Scroll to Top Button */}
+        <AnimatePresence>
+          {showScrollTop && (
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              onClick={scrollToTop}
+              className="fixed bottom-8 right-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all z-40 flex items-center justify-center"
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileTap={{ scale: 0.95 }}
+              aria-label="Scroll to top"
+            >
+              <ArrowUp className="w-6 h-6" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+        
+        {/* Substitute Modal */}
+        <AnimatePresence>
+          {showSubstitutes && (
+            <SubstituteModal
+              medicine={selectedMedicine}
+              substitutes={medicineSubstitutes[selectedMedicine]}
+              onClose={() => setShowSubstitutes(false)}
+              darkMode={darkMode}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+export default App;
