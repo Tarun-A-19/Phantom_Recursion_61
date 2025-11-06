@@ -1,3 +1,85 @@
+import axios from 'axios';
+
+// API Base URL - Update this if your backend is on a different port
+const API_BASE_URL = 'http://localhost:5000/api';
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add token to requests if available
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// ========== AUTHENTICATION APIs ==========
+
+// Register a new user
+export const registerUser = async (userData) => {
+  try {
+    const response = await api.post('/auth/register', userData);
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.message || 'Registration failed';
+  }
+};
+
+// Login user
+export const loginUser = async (credentials) => {
+  try {
+    const response = await api.post('/auth/login', credentials);
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.message || 'Login failed';
+  }
+};
+
+// Get current user profile
+export const getCurrentUser = async () => {
+  try {
+    const response = await api.get('/auth/me');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.message || 'Failed to get user profile';
+  }
+};
+
+// Logout user
+export const logoutUser = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  sessionStorage.removeItem('user');
+};
+
+// Check if user is authenticated
+export const isAuthenticated = () => {
+  return !!localStorage.getItem('token');
+};
+
+// Get stored user data
+export const getStoredUser = () => {
+  const user = localStorage.getItem('user');
+  return user ? JSON.parse(user) : null;
+};
+
+// ========== LOCATION APIs ==========
+
 // Get user location with proper permission request
 export const getUserLocation = () => {
   return new Promise((resolve, reject) => {
@@ -48,6 +130,8 @@ export const getUserLocation = () => {
     );
   });
 };
+
+// ========== OCR APIs ==========
 
 // Simulated OCR function
 export const extractMedicineFromImage = async () => {

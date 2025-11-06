@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { Mail, Lock, User, Eye, EyeOff, Activity, Shield, Heart, CheckCircle, Stethoscope, Users, Phone, Building2, Award } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Activity, Shield, Heart, CheckCircle, Stethoscope, Users, Phone, Building2, Award, Loader } from 'lucide-react';
+import { registerUser, loginUser } from '../utils/api';
 
 const LoginPage = ({ onLogin }) => {
   const [userType, setUserType] = useState('patient'); // 'patient' or 'doctor'
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -25,6 +28,9 @@ const LoginPage = ({ onLogin }) => {
     if (errors[e.target.name]) {
       setErrors({ ...errors, [e.target.name]: '' });
     }
+    if (apiError) {
+      setApiError('');
+    }
   };
 
   const handleUserTypeChange = (type) => {
@@ -39,6 +45,13 @@ const LoginPage = ({ onLogin }) => {
       experience: '',
       licenseNo: ''
     });
+    setErrors({});
+    setApiError('');
+  };
+
+  const handleTabSwitch = (isLoginTab) => {
+    setIsLogin(isLoginTab);
+    setApiError('');
     setErrors({});
   };
 
@@ -91,26 +104,67 @@ const LoginPage = ({ onLogin }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setApiError('');
     
-    if (validateForm()) {
-      const userData = {
-        name: formData.name || formData.email.split('@')[0],
-        email: formData.email,
-        userType: userType,
-        ...(userType === 'doctor' && {
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        // Login
+        const response = await loginUser({
+          email: formData.email,
+          password: formData.password
+        });
+
+        const userData = {
+          ...response.user,
+          userType: response.user.isDoctor ? 'doctor' : 'patient',
+          specialty: response.user.specialization,
+          licenseNo: response.user.licenseNumber
+        };
+
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        onLogin(userData);
+      } else {
+        // Register
+        const payload = {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          isDoctor: userType === 'doctor'
+        };
+
+        if (userType === 'doctor') {
+          payload.specialization = formData.specialty;
+          payload.licenseNumber = formData.licenseNo;
+        }
+
+        const response = await registerUser(payload);
+
+        const userData = {
+          ...response.user,
+          userType: response.user.isDoctor ? 'doctor' : 'patient',
           phone: formData.phone,
-          specialty: formData.specialty,
+          specialty: response.user.specialization,
           qualification: formData.qualification,
           experience: formData.experience,
-          licenseNo: formData.licenseNo,
-          isDoctor: true
-        })
-      };
-      
-      sessionStorage.setItem('user', JSON.stringify(userData));
-      onLogin(userData);
+          licenseNo: response.user.licenseNumber
+        };
+
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        onLogin(userData);
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      setApiError(error || 'An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -205,7 +259,7 @@ const LoginPage = ({ onLogin }) => {
             {/* Tab Toggle */}
             <div className="flex gap-2 mb-6 bg-white/5 p-1.5 rounded-2xl">
               <button
-                onClick={() => setIsLogin(true)}
+                onClick={() => handleTabSwitch(true)}
                 className={`flex-1 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   isLogin
                     ? `bg-gradient-to-r ${userType === 'patient' ? 'from-cyan-500 to-blue-600' : 'from-green-500 to-emerald-600'} text-white shadow-lg`
@@ -215,7 +269,7 @@ const LoginPage = ({ onLogin }) => {
                 Sign In
               </button>
               <button
-                onClick={() => setIsLogin(false)}
+                onClick={() => handleTabSwitch(false)}
                 className={`flex-1 py-3 rounded-xl font-semibold transition-all duration-300 ${
                   !isLogin
                     ? `bg-gradient-to-r ${userType === 'patient' ? 'from-cyan-500 to-blue-600' : 'from-green-500 to-emerald-600'} text-white shadow-lg`
@@ -227,6 +281,13 @@ const LoginPage = ({ onLogin }) => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* API Error Message */}
+              {apiError && (
+                <div className="bg-red-500/20 border-2 border-red-500 text-red-200 px-4 py-3 rounded-xl text-sm">
+                  {apiError}
+                </div>
+              )}
+
               {/* Name Field (Signup only) */}
               {!isLogin && (
                 <div>
@@ -410,11 +471,19 @@ const LoginPage = ({ onLogin }) => {
               {/* Submit Button */}
               <button
                 type="submit"
+                disabled={loading}
                 className={`w-full bg-gradient-to-r ${
                   userType === 'patient' ? 'from-cyan-500 to-blue-600' : 'from-green-500 to-emerald-600'
-                } text-white py-4 rounded-xl font-bold text-lg hover:shadow-2xl transition-all hover:scale-[1.02] mt-6`}
+                } text-white py-4 rounded-xl font-bold text-lg hover:shadow-2xl transition-all hover:scale-[1.02] mt-6 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
               >
-                {isLogin ? 'Sign In' : `Register as ${userType === 'doctor' ? 'Doctor' : 'Patient'}`}
+                {loading ? (
+                  <>
+                    <Loader className="animate-spin" size={20} />
+                    {isLogin ? 'Signing In...' : 'Registering...'}
+                  </>
+                ) : (
+                  isLogin ? 'Sign In' : `Register as ${userType === 'doctor' ? 'Doctor' : 'Patient'}`
+                )}
               </button>
             </form>
 
