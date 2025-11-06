@@ -6,7 +6,9 @@ import Map from './components/Map';
 import PriceChart from './components/PriceChart';
 import SubstituteModal from './components/SubstituteModal';
 import LocationModal from './components/LocationModal';
+import MedicineInfoCard from './components/medicineinfocard';
 import { demoPharmacies, medicineSubstitutes } from './data/demodata';
+import { medicineInfo } from './data/medicineinfo';
 import { searchPharmacies } from './utils/calculations';
 import { getUserLocation } from './utils/api';
 import { MapPin, Activity, Shield, Sparkles, TrendingUp, Pill, Heart, ChevronUp } from 'lucide-react';
@@ -19,10 +21,9 @@ function App() {
   const [selectedMedicine, setSelectedMedicine] = useState('');
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [locationLoading, setLocationLoading] = useState(true); // NEW
-  const [maxDistance] = useState(10);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const [maxDistance] = useState(2); // 2KM RADIUS
   
-  // Handle location permission
   const handleAllowLocation = async () => {
     setShowLocationModal(false);
     setLocationLoading(true);
@@ -33,58 +34,46 @@ function App() {
       setLocationLoading(false);
       
       if (location.isDefault) {
-        alert('⚠️ Location access was denied. Using approximate location. For best results, please enable location permissions in your browser settings.');
+        alert('⚠️ Location access denied. Using Bangalore MG Road as default.');
       }
     } catch (err) {
       console.error('Location error:', err);
-      setUserLocation({ lat: 28.6139, lng: 77.2090, isDefault: true });
+      setUserLocation({ lat: 12.9716, lng: 77.5946, isDefault: true });
       setLocationLoading(false);
-      alert('⚠️ Could not get your location. Using Delhi as default location.');
     }
   };
   
   const handleDenyLocation = () => {
     setShowLocationModal(false);
-    setUserLocation({ lat: 28.6139, lng: 77.2090, isDefault: true });
+    setUserLocation({ lat: 12.9716, lng: 77.5946, isDefault: true });
     setLocationLoading(false);
-    alert('ℹ️ Location access denied. Using Delhi as default. You can enable location anytime by clicking "Enable Precise Location".');
   };
   
-  // ✅ AUTO-REQUEST EXACT LOCATION ON MOUNT
   useEffect(() => {
     const requestLocation = async () => {
       setLocationLoading(true);
       
       try {
-        console.log('🔍 Requesting your exact location...');
+        console.log('🔍 Requesting your exact GPS location...');
         const location = await getUserLocation();
-        
         console.log('📍 Location received:', location);
         setUserLocation(location);
         setLocationLoading(false);
         
         if (location.isDefault) {
-          // If user denied, show modal to ask again
-          setTimeout(() => {
-            setShowLocationModal(true);
-          }, 1000);
+          setTimeout(() => setShowLocationModal(true), 1000);
         }
       } catch (err) {
         console.error('❌ Location error:', err);
-        setUserLocation({ lat: 28.6139, lng: 77.2090, isDefault: true });
+        setUserLocation({ lat: 12.9716, lng: 77.5946, isDefault: true });
         setLocationLoading(false);
-        
-        // Show modal to ask permission
-        setTimeout(() => {
-          setShowLocationModal(true);
-        }, 1000);
+        setTimeout(() => setShowLocationModal(true), 1000);
       }
     };
     
     requestLocation();
   }, []);
   
-  // Handle scroll
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 300);
@@ -112,14 +101,14 @@ function App() {
     setResults(searchResults);
     
     if (searchResults.length === 0) {
-      alert(`No pharmacies found within ${maxDistance}km with ${medicine}. Try a different medicine.`);
+      alert(`No pharmacies found within ${maxDistance}km with ${medicine}. Try searching for: Paracetamol 500mg, Cetirizine 10mg, Azithromycin 500mg, Omeprazole 20mg, or Vitamin D3 60K`);
     }
     
     setTimeout(() => {
-      document.getElementById('results-section')?.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'start'
-      });
+      const element = document.getElementById('results-section');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }, 100);
   };
   
@@ -132,7 +121,6 @@ function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
-  // ✅ SHOW LOADING SCREEN WHILE GETTING LOCATION
   if (locationLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50">
@@ -141,12 +129,8 @@ function App() {
             <MapPin size={64} className="text-cyan-600" />
           </div>
           <h2 className="text-3xl font-bold text-gray-800 mb-4">Getting Your Location...</h2>
-          <p className="text-gray-600 mb-2">
-            Please allow location access when prompted
-          </p>
-          <p className="text-sm text-gray-500">
-            We need your location to find nearby pharmacies
-          </p>
+          <p className="text-gray-600 mb-2">Please allow location access when prompted</p>
+          <p className="text-sm text-gray-500">We need your location to find nearby pharmacies</p>
           <div className="mt-6">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-cyan-500 border-t-transparent mx-auto"></div>
           </div>
@@ -157,21 +141,15 @@ function App() {
   
   return (
     <div className="min-h-screen">
-      {/* Medical Particles Background */}
       <div className="medical-particles"></div>
       
-      {/* Location Modal - Only shows if permission denied */}
       <LocationModal 
         isVisible={showLocationModal}
         onAllow={handleAllowLocation}
         onDeny={handleDenyLocation}
       />
       
-      {/* REST OF YOUR APP CODE - Keep everything else the same */}
-      {/* Navbar, Hero, Main Content... */}
-      
-      {/* Fixed Navbar */}
-      <nav className="fixed top-0 w-full glass-effect shadow-lg z-50 transition-all duration-300">
+      <nav className="fixed top-0 w-full glass-effect shadow-lg z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -186,7 +164,6 @@ function App() {
             <div className="hidden md:flex items-center gap-6">
               <a href="#about" className="text-gray-700 hover:text-cyan-600 transition-colors font-medium">About</a>
               <a href="#features" className="text-gray-700 hover:text-cyan-600 transition-colors font-medium">Features</a>
-              <a href="#contact" className="text-gray-700 hover:text-cyan-600 transition-colors font-medium">Contact</a>
               <button className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-2.5 rounded-full font-semibold hover:shadow-lg transition-all hover:scale-105">
                 Get Started
               </button>
@@ -195,16 +172,15 @@ function App() {
         </div>
       </nav>
 
-      {/* Hero Section */}
       <section className="pt-32 pb-20 px-4 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
           <div className="absolute top-20 left-10 w-72 h-72 bg-cyan-400 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-400 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-400 rounded-full blur-3xl animate-pulse"></div>
         </div>
         
         <div className="container mx-auto text-center relative z-10">
           <div className="inline-flex items-center gap-2 bg-cyan-100 text-cyan-700 px-5 py-2.5 rounded-full mb-8 shadow-md ai-badge">
-            <Sparkles size={18} className="medical-icon-glow" />
+            <Sparkles size={18} />
             <span className="text-sm font-bold">AI-Powered Medicine Search</span>
           </div>
           
@@ -214,7 +190,7 @@ function App() {
             <span className="text-gray-800">At Best Prices, Instantly</span>
           </h1>
           
-          <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto">
             Discover nearby pharmacies with <span className="font-bold text-cyan-600">real-time availability</span>, 
             compare prices, and get <span className="font-bold text-blue-600">AI-powered recommendations</span>.
           </p>
@@ -242,9 +218,7 @@ function App() {
         </div>
       </section>
 
-      {/* Main Content */}
       <div className="container mx-auto px-4 pb-20">
-        {/* Location Status Card */}
         {userLocation && (
           <div className={`medical-container mb-8 medical-card ${
             userLocation.isDefault ? 'border-2 border-amber-300' : 'border-2 border-green-300'
@@ -259,7 +233,7 @@ function App() {
               </div>
               <div className="flex-1">
                 <p className="text-xs text-gray-600 font-medium mb-1">
-                  {userLocation.isDefault ? '⚠️ Using Approximate Location' : '✅ Your Exact GPS Location'}
+                  {userLocation.isDefault ? '⚠️ Using Default Location (Bangalore MG Road)' : '✅ Your Exact GPS Location'}
                 </p>
                 <p className="text-sm font-bold text-gray-800">
                   {userLocation.lat.toFixed(6)}, {userLocation.lng.toFixed(6)}
@@ -271,15 +245,13 @@ function App() {
               </div>
               <div className="flex flex-col gap-2">
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${
-                  userLocation.isDefault 
-                    ? 'bg-amber-100 text-amber-700' 
-                    : 'bg-green-100 text-green-700'
+                  userLocation.isDefault ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
                 }`}>
                   <span className={`w-2 h-2 rounded-full animate-pulse ${
                     userLocation.isDefault ? 'bg-amber-500' : 'bg-green-500'
                   }`}></span>
                   <span className="text-sm font-bold">
-                    {userLocation.isDefault ? 'Approximate' : 'GPS Active'}
+                    {userLocation.isDefault ? 'Default' : 'GPS Active'}
                   </span>
                 </div>
                 {userLocation.isDefault && (
@@ -287,7 +259,7 @@ function App() {
                     onClick={() => setShowLocationModal(true)}
                     className="text-xs text-cyan-600 hover:text-cyan-700 font-semibold hover:underline"
                   >
-                    Enable Precise GPS
+                    Enable GPS
                   </button>
                 )}
               </div>
@@ -295,7 +267,6 @@ function App() {
           </div>
         )}
         
-        {/* Two Column Layout - Keep rest of code */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6">
             <div className="medical-container medical-card">
@@ -315,6 +286,13 @@ function App() {
             </div>
             
             <div id="results-section">
+              {currentMedicine && medicineInfo[currentMedicine] && (
+                <MedicineInfoCard 
+                  medicineName={currentMedicine}
+                  medicineData={medicineInfo[currentMedicine]}
+                />
+              )}
+              
               {results.length > 0 && (
                 <div className="space-y-6">
                   <PriceChart results={results} />
@@ -325,7 +303,7 @@ function App() {
                 </div>
               )}
               
-              {results.length === 0 && (
+              {results.length === 0 && !currentMedicine && (
                 <div className="medical-container text-center py-16 medical-card">
                   <div className="bg-gradient-to-br from-cyan-100 to-blue-100 w-28 h-28 rounded-full mx-auto mb-8 flex items-center justify-center shadow-lg">
                     <Activity size={56} className="text-cyan-600 medical-pulse" />
@@ -372,15 +350,24 @@ function App() {
                   <div>
                     <p className="text-sm text-gray-600 mb-2">Results Found</p>
                     <p className="text-4xl font-bold text-cyan-600">{results.length}</p>
+                    <p className="text-xs text-gray-500 mt-1">pharmacies within {maxDistance}km</p>
                   </div>
                   <div className="bg-white px-4 py-4 rounded-xl shadow-sm">
                     <p className="text-xs text-gray-500 mb-1">Searching for:</p>
                     <p className="font-bold text-gray-800">{currentMedicine}</p>
                   </div>
-                  <div className="pt-4 border-t border-green-200">
-                    <p className="text-xs text-gray-600 mb-2">🏆 Top Recommended</p>
-                    <p className="font-bold text-green-600">{results[0]?.name}</p>
-                  </div>
+                  {results[0] && (
+                    <div className="pt-4 border-t border-green-200">
+                      <p className="text-xs text-gray-600 mb-2">🏆 Top Recommended</p>
+                      <p className="font-bold text-green-600 mb-1">{results[0].name}</p>
+                      <p className="text-sm text-gray-600">
+                        Distance: <span className="font-bold text-cyan-600">{results[0].distance.toFixed(2)} km</span>
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Price: <span className="font-bold text-green-600">₹{results[0].price}</span>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -391,7 +378,8 @@ function App() {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-8 right-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-4 rounded-full shadow-2xl z-40 hover:scale-110"
+          className="fixed bottom-8 right-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-4 rounded-full shadow-2xl z-40 hover:scale-110 transition-transform"
+          aria-label="Scroll to top"
         >
           <ChevronUp size={24} />
         </button>
