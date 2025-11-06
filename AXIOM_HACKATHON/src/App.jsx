@@ -16,7 +16,7 @@ import { demoPharmacies, medicineSubstitutes } from './data/demodata';
 import { medicineInfo } from './data/medicineinfo';
 import { searchPharmacies } from './utils/calculations';
 import { getUserLocation } from './utils/api';
-import { MapPin, Activity, Shield, Sparkles, TrendingUp, Pill, Heart, ChevronUp, LogOut } from 'lucide-react';
+import { MapPin, Activity, Shield, Sparkles, TrendingUp, Pill, Heart, ChevronUp, LogOut, Menu, X } from 'lucide-react';
 
 function App() {
   // Authentication States
@@ -36,6 +36,7 @@ function App() {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [locationLoading, setLocationLoading] = useState(true);
   const [maxDistance] = useState(5); // 5KM RADIUS
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   
   // Check if user is already logged in
   useEffect(() => {
@@ -60,6 +61,7 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData);
     setIsAuthenticated(true);
+    sessionStorage.setItem('user', JSON.stringify(userData));
     
     // Only request location for patients
     if (!userData.isDoctor) {
@@ -77,6 +79,7 @@ function App() {
     setResults([]);
     setCurrentMedicine('');
     setCurrentPage('home');
+    setShowMobileMenu(false);
   };
   
   // Handle medicine selection from prescription/symptom checker
@@ -87,6 +90,7 @@ function App() {
     }, 100);
   };
   
+  // Handle location access
   const handleAllowLocation = async () => {
     setShowLocationModal(false);
     setLocationLoading(true);
@@ -97,21 +101,22 @@ function App() {
       setLocationLoading(false);
       
       if (location.isDefault) {
-        alert('⚠️ Location access denied. Using Kengeri (SJBIT area) as default.');
+        alert('⚠️ Location access denied. Using default location.');
       }
     } catch (err) {
       console.error('Location error:', err);
-      setUserLocation({ lat: 12.9093, lng: 77.4853, isDefault: true });
+      setUserLocation({ lat: 12.9716, lng: 77.5946, isDefault: true }); // Default to Bangalore
       setLocationLoading(false);
     }
   };
   
   const handleDenyLocation = () => {
     setShowLocationModal(false);
-    setUserLocation({ lat: 12.9093, lng: 77.4853, isDefault: true });
+    setUserLocation({ lat: 12.9716, lng: 77.5946, isDefault: true });
     setLocationLoading(false);
   };
   
+  // Get user location on component mount if authenticated
   useEffect(() => {
     if (!isAuthenticated || user?.isDoctor) return;
     
@@ -119,9 +124,7 @@ function App() {
       setLocationLoading(true);
       
       try {
-        console.log('🔍 Requesting your exact GPS location...');
         const location = await getUserLocation();
-        console.log('📍 Location received:', location);
         setUserLocation(location);
         setLocationLoading(false);
         
@@ -129,8 +132,8 @@ function App() {
           setTimeout(() => setShowLocationModal(true), 1000);
         }
       } catch (err) {
-        console.error('❌ Location error:', err);
-        setUserLocation({ lat: 12.9093, lng: 77.4853, isDefault: true });
+        console.error('Location error:', err);
+        setUserLocation({ lat: 12.9716, lng: 77.5946, isDefault: true });
         setLocationLoading(false);
         setTimeout(() => setShowLocationModal(true), 1000);
       }
@@ -139,14 +142,17 @@ function App() {
     requestLocation();
   }, [isAuthenticated, user]);
   
+  // Handle scroll to top button
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 300);
     };
+    
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
   
+  // Handle search functionality
   const handleSearch = (medicine) => {
     if (!userLocation) {
       alert('Getting your location...');
@@ -166,9 +172,10 @@ function App() {
     setResults(searchResults);
     
     if (searchResults.length === 0) {
-      alert(`No pharmacies found within ${maxDistance}km with ${medicine}. Try: Paracetamol 500mg, Cetirizine 10mg, Azithromycin 500mg, Omeprazole 20mg, or Vitamin D3 60K`);
+      alert(`No pharmacies found within ${maxDistance}km with ${medicine}. Try: Paracetamol 500mg, Cetirizine 10mg, etc.`);
     }
     
+    // Scroll to results
     setTimeout(() => {
       const element = document.getElementById('results-section');
       if (element) {
@@ -191,13 +198,12 @@ function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
   
-  // ===== DOCTOR DASHBOARD =====
+  // Show doctor dashboard if user is a doctor
   if (user?.isDoctor) {
     return <DoctorDashboard user={user} onLogout={handleLogout} />;
   }
   
-  // ===== PATIENT DASHBOARD =====
-  // Show loading screen while getting location (for patients only)
+  // Show loading screen while getting location
   if (locationLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50">
@@ -216,326 +222,296 @@ function App() {
     );
   }
   
+  // Main app layout
   return (
-    <div className="min-h-screen">
-      <div className="medical-particles"></div>
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 flex items-center">
+                <Pill className="h-8 w-8 text-cyan-600" />
+                <span className="ml-2 text-xl font-bold text-gray-900">MediLocate</span>
+              </div>
+              
+              {/* Desktop Navigation */}
+              <nav className="hidden md:ml-10 md:flex md:space-x-8">
+                <button
+                  onClick={() => setCurrentPage('home')}
+                  className={`${
+                    currentPage === 'home'
+                      ? 'border-cyan-600 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                >
+                  Home
+                </button>
+                <button
+                  onClick={() => setCurrentPage('prescription')}
+                  className={`${
+                    currentPage === 'prescription'
+                      ? 'border-cyan-600 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                >
+                  Prescriptions
+                </button>
+                <button
+                  onClick={() => setCurrentPage('symptoms')}
+                  className={`${
+                    currentPage === 'symptoms'
+                      ? 'border-cyan-600 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                >
+                  Symptom Checker
+                </button>
+                <button
+                  onClick={() => setCurrentPage('doctors')}
+                  className={`${
+                    currentPage === 'doctors'
+                      ? 'border-cyan-600 text-gray-900'
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                  } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                >
+                  Find Doctors
+                </button>
+              </nav>
+            </div>
+            
+            {/* User menu */}
+            <div className="hidden md:ml-6 md:flex md:items-center">
+              <button
+                onClick={handleLogout}
+                className="ml-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </button>
+            </div>
+            
+            {/* Mobile menu button */}
+            <div className="-mr-2 flex items-center md:hidden">
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                type="button"
+                className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-cyan-500"
+                aria-controls="mobile-menu"
+                aria-expanded="false"
+              >
+                <span className="sr-only">Open main menu</span>
+                {showMobileMenu ? (
+                  <X className="block h-6 w-6" aria-hidden="true" />
+                ) : (
+                  <Menu className="block h-6 w-6" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Mobile menu */}
+        {showMobileMenu && (
+          <div className="md:hidden" id="mobile-menu">
+            <div className="pt-2 pb-3 space-y-1">
+              <button
+                onClick={() => {
+                  setCurrentPage('home');
+                  setShowMobileMenu(false);
+                }}
+                className={`${
+                  currentPage === 'home'
+                    ? 'bg-cyan-50 border-cyan-600 text-cyan-700'
+                    : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+                } block pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentPage('prescription');
+                  setShowMobileMenu(false);
+                }}
+                className={`${
+                  currentPage === 'prescription'
+                    ? 'bg-cyan-50 border-cyan-600 text-cyan-700'
+                    : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+                } block pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
+              >
+                Prescriptions
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentPage('symptoms');
+                  setShowMobileMenu(false);
+                }}
+                className={`${
+                  currentPage === 'symptoms'
+                    ? 'bg-cyan-50 border-cyan-600 text-cyan-700'
+                    : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+                } block pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
+              >
+                Symptom Checker
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentPage('doctors');
+                  setShowMobileMenu(false);
+                }}
+                className={`${
+                  currentPage === 'doctors'
+                    ? 'bg-cyan-50 border-cyan-600 text-cyan-700'
+                    : 'border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+                } block pl-3 pr-4 py-2 border-l-4 text-base font-medium`}
+              >
+                Find Doctors
+              </button>
+              <div className="pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full flex items-center pl-3 pr-4 py-2 text-base font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                >
+                  <LogOut className="h-5 w-5 mr-3 text-gray-400" />
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </header>
       
+      {/* Location Modal */}
       <LocationModal 
         isVisible={showLocationModal}
         onAllow={handleAllowLocation}
         onDeny={handleDenyLocation}
       />
       
-      {/* Navigation Bar */}
-      <nav className="fixed top-0 w-full glass-effect shadow-lg z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-2.5 rounded-xl shadow-lg medical-pulse">
-                <Pill size={28} className="text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold gradient-text">MediLocate</h1>
-                <p className="text-xs text-gray-600 font-medium">Smart Healthcare Platform</p>
-              </div>
-            </div>
-            <div className="hidden md:flex items-center gap-6">
-              <button 
-                onClick={() => setCurrentPage('home')}
-                className={`font-medium transition-colors ${
-                  currentPage === 'home' ? 'text-cyan-600' : 'text-gray-700 hover:text-cyan-600'
-                }`}
-              >
-                Home
-              </button>
-              <button 
-                onClick={() => setCurrentPage('prescription')}
-                className={`font-medium transition-colors ${
-                  currentPage === 'prescription' ? 'text-cyan-600' : 'text-gray-700 hover:text-cyan-600'
-                }`}
-              >
-                Prescriptions
-              </button>
-              <button 
-                onClick={() => setCurrentPage('symptoms')}
-                className={`font-medium transition-colors ${
-                  currentPage === 'symptoms' ? 'text-cyan-600' : 'text-gray-700 hover:text-cyan-600'
-                }`}
-              >
-                Symptoms
-              </button>
-              <button 
-                onClick={() => setCurrentPage('doctors')}
-                className={`font-medium transition-colors ${
-                  currentPage === 'doctors' ? 'text-cyan-600' : 'text-gray-700 hover:text-cyan-600'
-                }`}
-              >
-                Doctors
-              </button>
-              <div className="flex items-center gap-3 ml-2">
-                <span className="text-sm font-semibold text-gray-800">👋 {user?.name}</span>
-                <button
-                  onClick={handleLogout}
-                  className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-full font-semibold transition-all hover:scale-105 flex items-center gap-2"
-                >
-                  <LogOut size={16} />
-                  Logout
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Prescription Page */}
-      {currentPage === 'prescription' && (
-        <PrescriptionPage 
-          onBack={() => setCurrentPage('home')}
-          onMedicineSelect={handleMedicineFromPrescription}
-        />
-      )}
-
-      {/* Symptom Checker Page */}
-      {currentPage === 'symptoms' && (
-        <SymptomCheckerPage 
-          onBack={() => setCurrentPage('home')}
-          onMedicineSelect={handleMedicineFromPrescription}
-        />
-      )}
-
-      {/* Doctor Consultation Page */}
-      {currentPage === 'doctors' && (
-        <DoctorConsultPage 
-          onBack={() => setCurrentPage('home')}
-          userLocation={userLocation}
-        />
-      )}
-
-      {/* Home Page */}
-      {currentPage === 'home' && (
-        <>
-          <section className="pt-32 pb-20 px-4 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
-              <div className="absolute top-20 left-10 w-72 h-72 bg-cyan-400 rounded-full blur-3xl animate-pulse"></div>
-              <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-400 rounded-full blur-3xl animate-pulse"></div>
-            </div>
-            
-            <div className="container mx-auto text-center relative z-10">
-              <div className="inline-flex items-center gap-2 bg-cyan-100 text-cyan-700 px-5 py-2.5 rounded-full mb-8 shadow-md ai-badge">
-                <Sparkles size={18} />
-                <span className="text-sm font-bold">AI-Powered Healthcare Platform</span>
-              </div>
-              
-              <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-                <span className="gradient-text">Complete Healthcare</span>
-                <br />
-                <span className="text-gray-800">At Your Fingertips</span>
-              </h1>
-              
-              <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto">
-                Find medicines, check symptoms, consult doctors, and book appointments - 
-                <span className="font-bold text-cyan-600"> all in one place</span>.
-              </p>
-              
-              <div className="flex flex-wrap gap-4 justify-center">
-                <div className="glass-effect px-5 py-3 rounded-full shadow-md">
-                  <div className="flex items-center gap-2">
-                    <Shield size={20} className="text-green-600" />
-                    <span className="text-sm font-semibold">100% Verified</span>
-                  </div>
-                </div>
-                <div className="glass-effect px-5 py-3 rounded-full shadow-md">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp size={20} className="text-blue-600" />
-                    <span className="text-sm font-semibold">Best Prices</span>
-                  </div>
-                </div>
-                <div className="glass-effect px-5 py-3 rounded-full shadow-md">
-                  <div className="flex items-center gap-2">
-                    <Heart size={20} className="text-red-500" />
-                    <span className="text-sm font-semibold">Trusted by 10K+</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div className="container mx-auto px-4 pb-20">
-            {userLocation && (
-              <div className={`medical-container mb-8 medical-card ${
-                userLocation.isDefault ? 'border-2 border-amber-300' : 'border-2 border-green-300'
-              }`}>
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-xl shadow-lg ${
-                    userLocation.isDefault 
-                      ? 'bg-gradient-to-br from-amber-400 to-orange-500' 
-                      : 'bg-gradient-to-br from-green-500 to-emerald-600'
-                  }`}>
-                    <MapPin size={24} className="text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-600 font-medium mb-1">
-                      {userLocation.isDefault ? '⚠️ Using Default Location (Kengeri, SJBIT area)' : '✅ Your Exact GPS Location'}
-                    </p>
-                    <p className="text-sm font-bold text-gray-800">
-                      {userLocation.lat.toFixed(6)}, {userLocation.lng.toFixed(6)}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Showing results within <strong>{maxDistance}km radius</strong>
-                      {userLocation.accuracy && ` • Accuracy: ±${userLocation.accuracy.toFixed(0)}m`}
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${
-                      userLocation.isDefault ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-                    }`}>
-                      <span className={`w-2 h-2 rounded-full animate-pulse ${
-                        userLocation.isDefault ? 'bg-amber-500' : 'bg-green-500'
-                      }`}></span>
-                      <span className="text-sm font-bold">
-                        {userLocation.isDefault ? 'Default' : 'GPS Active'}
-                      </span>
-                    </div>
-                    {userLocation.isDefault && (
-                      <button
-                        onClick={() => setShowLocationModal(true)}
-                        className="text-xs text-cyan-600 hover:text-cyan-700 font-semibold hover:underline"
-                      >
-                        Enable GPS
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <div className="medical-container medical-card">
-                  <div className="flex items-center gap-2 mb-6">
-                    <span className="w-1.5 h-10 bg-gradient-to-b from-cyan-500 to-blue-600 rounded-full"></span>
-                    <h2 className="text-xl font-bold text-gray-800">Search Medicine</h2>
-                  </div>
+      {/* Main Content */}
+      <main className="flex-grow">
+        {currentPage === 'prescription' ? (
+          <PrescriptionPage 
+            onBack={() => setCurrentPage('home')}
+            onMedicineSelect={handleMedicineFromPrescription}
+          />
+        ) : currentPage === 'symptoms' ? (
+          <SymptomCheckerPage 
+            onBack={() => setCurrentPage('home')}
+            onMedicineSelect={handleMedicineFromPrescription}
+          />
+        ) : currentPage === 'doctors' ? (
+          <DoctorConsultPage 
+            onBack={() => setCurrentPage('home')}
+            userLocation={userLocation}
+          />
+        ) : (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Hero Section */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+              <div className="text-center">
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">Find Your Medicine</h1>
+                <p className="text-gray-600 mb-6">Search for medicines, check prices, and find the nearest pharmacy</p>
+                
+                <div className="max-w-2xl mx-auto">
                   <SearchBar onSearch={handleSearch} />
+                  <p className="mt-3 text-sm text-gray-500">
+                    Try: <button onClick={() => handleSearch('Paracetamol 500mg')} className="text-cyan-600 hover:underline">Paracetamol 500mg</button>, 
+                    <button onClick={() => handleSearch('Cetirizine 10mg')} className="ml-1 text-cyan-600 hover:underline">Cetirizine 10mg</button>
+                  </p>
                 </div>
                 
-                <div className="medical-container medical-card">
-                  <div className="flex items-center gap-2 mb-6">
-                    <span className="w-1.5 h-10 bg-gradient-to-b from-purple-500 to-pink-600 rounded-full"></span>
-                    <h2 className="text-xl font-bold text-gray-800">Prescription Scanner</h2>
+                <div className="mt-8">
+                  <div className="flex flex-wrap justify-center gap-4">
+                    <button
+                      onClick={() => setCurrentPage('prescription')}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
+                    >
+                      <Pill className="h-4 w-4 mr-2" />
+                      Upload Prescription
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage('symptoms')}
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
+                    >
+                      <Activity className="h-4 w-4 mr-2" />
+                      Check Symptoms
+                    </button>
                   </div>
-                  <OCRUpload onExtract={handleSearch} />
                 </div>
+              </div>
+            </div>
+            
+            {/* Results Section */}
+            {currentMedicine && (
+              <div id="results-section" className="mt-8">
+                {medicineInfo[currentMedicine] && (
+                  <MedicineInfoCard 
+                    medicineName={currentMedicine}
+                    medicineData={medicineInfo[currentMedicine]}
+                  />
+                )}
                 
-                <div id="results-section">
-                  {currentMedicine && medicineInfo[currentMedicine] && (
-                    <MedicineInfoCard 
-                      medicineName={currentMedicine}
-                      medicineData={medicineInfo[currentMedicine]}
-                    />
-                  )}
-                  
-                  {results.length > 0 && (
-                    <div className="space-y-6">
-                      <PriceChart results={results} />
+                {results.length > 0 && (
+                  <div className="mt-8">
+                    <PriceChart results={results} />
+                    <div className="mt-8">
+                      <h2 className="text-lg font-medium text-gray-900 mb-4">Available at {results.length} pharmacies</h2>
                       <ResultsList 
                         results={results} 
                         onViewSubstitutes={handleViewSubstitutes}
                       />
                     </div>
-                  )}
-                  
-                  {results.length === 0 && !currentMedicine && (
-                    <div className="medical-container text-center py-16 medical-card">
-                      <div className="bg-gradient-to-br from-cyan-100 to-blue-100 w-28 h-28 rounded-full mx-auto mb-8 flex items-center justify-center shadow-lg">
-                        <Activity size={56} className="text-cyan-600 medical-pulse" />
-                      </div>
-                      <h3 className="text-3xl font-bold text-gray-800 mb-4">Start Your Search</h3>
-                      <p className="text-gray-600 mb-8 text-lg">
-                        Find nearby pharmacies with the best prices
-                      </p>
-                      <div className="flex gap-3 justify-center flex-wrap">
-                        <button 
-                          onClick={() => handleSearch('Paracetamol 500mg')}
-                          className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-6 py-3 rounded-full font-semibold transition-all hover:scale-105"
-                        >
-                          Try: Paracetamol 500mg
-                        </button>
-                        <button 
-                          onClick={() => handleSearch('Cetirizine 10mg')}
-                          className="bg-green-100 hover:bg-green-200 text-green-700 px-6 py-3 rounded-full font-semibold transition-all hover:scale-105"
-                        >
-                          Try: Cetirizine 10mg
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="lg:sticky lg:top-24 h-fit space-y-6">
-                <div className="medical-container medical-card">
-                  <div className="flex items-center gap-2 mb-6">
-                    <span className="w-1.5 h-10 bg-gradient-to-b from-green-500 to-emerald-600 rounded-full"></span>
-                    <h2 className="text-xl font-bold text-gray-800">Nearby Pharmacies</h2>
-                  </div>
-                  <Map center={userLocation} pharmacies={results} />
-                </div>
-                
-                {results.length > 0 && (
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 shadow-lg border-2 border-green-200">
-                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-lg">
-                      <TrendingUp size={22} className="text-green-600" />
-                      Search Summary
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-gray-600 mb-2">Results Found</p>
-                        <p className="text-4xl font-bold text-cyan-600">{results.length}</p>
-                        <p className="text-xs text-gray-500 mt-1">pharmacies within {maxDistance}km</p>
-                      </div>
-                      <div className="bg-white px-4 py-4 rounded-xl shadow-sm">
-                        <p className="text-xs text-gray-500 mb-1">Searching for:</p>
-                        <p className="font-bold text-gray-800">{currentMedicine}</p>
-                      </div>
-                      {results[0] && (
-                        <div className="pt-4 border-t border-green-200">
-                          <p className="text-xs text-gray-600 mb-2">🏆 Top Recommended</p>
-                          <p className="font-bold text-green-600 mb-1">{results[0].name}</p>
-                          <p className="text-sm text-gray-600">
-                            Distance: <span className="font-bold text-cyan-600">{results[0].distance.toFixed(2)} km</span>
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Price: <span className="font-bold text-green-600">₹{results[0].price}</span>
-                          </p>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 )}
               </div>
-            </div>
+            )}
+            
+            {/* Map Section */}
+            {userLocation && (
+              <div className="mt-12 bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="p-6">
+                  <h2 className="text-lg font-medium text-gray-900 mb-4">Pharmacies Near You</h2>
+                  <div className="h-96 rounded-lg overflow-hidden">
+                    <Map center={userLocation} pharmacies={results} />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </>
-      )}
-
+        )}
+      </main>
+      
+      {/* Scroll to top button */}
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-8 right-8 bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-4 rounded-full shadow-2xl z-40 hover:scale-110 transition-transform"
+          className="fixed bottom-6 right-6 p-3 rounded-full bg-cyan-600 text-white shadow-lg hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
           aria-label="Scroll to top"
         >
-          <ChevronUp size={24} />
+          <ChevronUp className="h-6 w-6" />
         </button>
       )}
       
-      {showSubstitutes && (
-        <SubstituteModal
-          medicine={selectedMedicine}
-          substitutes={medicineSubstitutes[selectedMedicine]}
-          onClose={() => setShowSubstitutes(false)}
-        />
-      )}
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 mt-12">
+        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-sm text-gray-500">
+            &copy; {new Date().getFullYear()} MediLocate. All rights reserved.
+          </p>
+        </div>
+      </footer>
+      
+      {/* Substitute Modal */}
+      <SubstituteModal
+        isOpen={showSubstitutes}
+        onClose={() => setShowSubstitutes(false)}
+        medicine={selectedMedicine}
+        substitutes={medicineSubstitutes[selectedMedicine] || []}
+      />
     </div>
   );
 }
